@@ -1,5 +1,5 @@
-# DAVAI
-Damn Automated Vulnerable Azure Instance   
+# DVAAD
+Damn Vulnerable Azure AD   
 > **_NOTE:_**  Work in progress...    
 > :warning: **This script should not be used in production environments!**
 
