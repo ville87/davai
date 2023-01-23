@@ -1,0 +1,2 @@
+# davai
+DamnAutomatedVulnerableAzureInstance
