@@ -74,8 +74,9 @@ foreach($userentry in $userlist){
 # Export created users with passwords
 $UserExport | Export-Csv -NoTypeInformation -Path $UserlistCSV
 
-# Get all the AAD roles into array
-$AzureADRoles = Get-AzureADDirectoryRoleTemplate
+# Get all the AAD roles and role templates into array
+$AzureADRoles = Get-AzureADDirectoryRole
+$AzureADRoleTemplates = Get-AzureADDirectoryRoleTemplate
 
 # Combine the dangerous roles we want to assign
 $RolesToAssign = $PotentiallyDangerousAzADRBACRoles + $MostDangerousAzADRBACRoles
@@ -86,9 +87,12 @@ foreach($AADrole in $RolesToAssign){
     $AssignUser = $UserExport | Get-Random
     try{
         $UserObjectId = (Get-AzureADUser -SearchString "$($AssignUser.UserUPN)" | select -ExpandProperty ObjectId)
-        $AADRoleTemplId = ($AzureADRoles | Where-Object { $_.DisplayName -like $AADRole} | select -ExpandProperty ObjectId)
+        $AADRoleTemplId = ($AzureADRoleTemplates | Where-Object { $_.DisplayName -like $AADRole} | select -ExpandProperty ObjectId)
         # First make sure the role is enabled
-        Enable-AzureADDirectoryRole -RoleTemplateId $AADRoleTemplId
+        $CheckRole = ($AzureADRoles | Where-Object { $_.DisplayName -like "$AADRole"})
+        if(($CheckRole.count -lt 1) -or ($CheckRole.RoleDisabled -eq $true){
+            Enable-AzureADDirectoryRole -RoleTemplateId $AADRoleTemplId
+        }
         # Now get the RoleId and assign it
         $AADRoleId = (Get-AzureADDirectoryRole | Where-Object { $_.DisplayName -like "$AADrole"} | select -ExpandProperty ObjectId)
         Add-AzureADDirectoryRoleMember -ObjectId $AADRoleId -RefObjectId $UserObjectId
