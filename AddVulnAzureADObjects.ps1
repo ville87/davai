@@ -64,6 +64,7 @@ foreach($userentry in $userlist){
         $data = [PSCustomObject]@{
             UserUPN = $UserUPN
             UserPW = $PWString
+            UserRole = "None"
         }
         $UserExport += $data
     }catch{
@@ -71,8 +72,6 @@ foreach($userentry in $userlist){
         Exit
     }
 }
-# Export created users with passwords
-$UserExport | Export-Csv -NoTypeInformation -Path $UserlistCSV
 
 # Get all the AAD roles and role templates into array
 $AzureADRoles = Get-AzureADDirectoryRole
@@ -96,6 +95,7 @@ foreach($AADrole in $RolesToAssign){
         # Now get the RoleId and assign it
         $AADRoleId = (Get-AzureADDirectoryRole | Where-Object { $_.DisplayName -like "$AADrole"} | select -ExpandProperty ObjectId)
         Add-AzureADDirectoryRoleMember -ObjectId $AADRoleId -RefObjectId $UserObjectId
+        ($UserExport |Where-Object { $_.UserUPN -like "$($AssignUser.UserUPN)"}).UserRole = "$AADRole"
     }catch{
         Write-Warning "Could not assign the role $AADRole to user $($AssignUser.UserUPN)! Errormessage:`r`n$($error[0].Exception)`r`n"
     }
@@ -105,8 +105,6 @@ foreach($AADrole in $RolesToAssign){
 $GraphAppId = "00000003-0000-0000-c000-000000000000"
 # Get the Graph SP
 $GraphServicePrincipal = Get-AzureADServicePrincipal -Filter "appId eq '$GraphAppId'"
-# Get the graph appid
-$graphobjid  = (Get-AzureADServicePrincipal -All $true | Where-Object { $_.AppId -eq $GraphAppId } |select -ExpandProperty ObjectId)
 $SPExport = @()
 # Make sure the Graph permissions are assigned
 foreach($GraphPermission in $DangerousGraphPermissions){
@@ -127,6 +125,9 @@ foreach($GraphPermission in $DangerousGraphPermissions){
     }
     $SPExport += $data
 }
+
+# Export created users with passwords and roles
+$UserExport | Export-Csv -NoTypeInformation -Path $UserlistCSV
 # Export created Apps and SPs
 $SPExport | Export-Csv -NoTypeInformation -Path $SPlistCSV
 
