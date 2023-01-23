@@ -89,7 +89,7 @@ foreach($AADrole in $RolesToAssign){
         $AADRoleTemplId = ($AzureADRoleTemplates | Where-Object { $_.DisplayName -like $AADRole} | select -ExpandProperty ObjectId)
         # First make sure the role is enabled
         $CheckRole = ($AzureADRoles | Where-Object { $_.DisplayName -like "$AADRole"})
-        if(($CheckRole.count -lt 1) -or ($CheckRole.RoleDisabled -eq $true){
+        if(($CheckRole.count -lt 1) -or ($CheckRole.RoleDisabled -eq $true)){
             Enable-AzureADDirectoryRole -RoleTemplateId $AADRoleTemplId
         }
         # Now get the RoleId and assign it
