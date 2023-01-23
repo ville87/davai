@@ -4,9 +4,9 @@
 # Number of Azure AD users you want to create
 [int]$usercount = 10
 # File for generated users and their passwords
-[string]$UserlistCSV = ".\AzureAD-users.csv"
+[string]$UserlistJSON = ".\AzureAD-users.json"
 # File for generated apps and service principals with the MS Graph permission assigned
-[string]$SPlistCSV = ".\AzureAD-svcprincipals.csv"
+[string]$SPlistJSON = ".\AzureAD-svcprincipals.json"
 # Define list of dangerous MS graph permissions we want to assign
 [array]$CSVHeader = @("Id","Permission")
 [array]$DangerousGraphPermissionsList = @("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8,RoleManagement.ReadWrite.Directory","06b708a9-e830-4db3-a914-8e69da51d44f,AppRoleAssignment.ReadWrite.All")
@@ -64,7 +64,7 @@ foreach($userentry in $userlist){
         $data = [PSCustomObject]@{
             UserUPN = $UserUPN
             UserPW = $PWString
-            UserRole = "None"
+            UserRole = @()
         }
         $UserExport += $data
     }catch{
@@ -95,7 +95,7 @@ foreach($AADrole in $RolesToAssign){
         # Now get the RoleId and assign it
         $AADRoleId = (Get-AzureADDirectoryRole | Where-Object { $_.DisplayName -like "$AADrole"} | select -ExpandProperty ObjectId)
         Add-AzureADDirectoryRoleMember -ObjectId $AADRoleId -RefObjectId $UserObjectId
-        ($UserExport |Where-Object { $_.UserUPN -like "$($AssignUser.UserUPN)"}).UserRole = "$AADRole"
+        ($UserExport |Where-Object { $_.UserUPN -like "$($AssignUser.UserUPN)"}).UserRole += "$AADRole"
     }catch{
         Write-Warning "Could not assign the role $AADRole to user $($AssignUser.UserUPN)! Errormessage:`r`n$($error[0].Exception)`r`n"
     }
@@ -127,11 +127,11 @@ foreach($GraphPermission in $DangerousGraphPermissions){
 }
 
 # Export created users with passwords and roles
-$UserExport | Export-Csv -NoTypeInformation -Path $UserlistCSV
+$UserExport | ConvertTo-Json | Set-Content -Path $UserlistJSON
 # Export created Apps and SPs
-$SPExport | Export-Csv -NoTypeInformation -Path $SPlistCSV
+$SPExport | ConvertTo-Json | Set-Content -Path $SPlistJSON
 
 #### DONE ####
 Write-Host "Script done!"
-Write-Host "Users created in Azure AD, UPN and PWs exported to $UserlistCSV"
-Write-Host "Apps and Service Principals created in Azure AD, details exported to $SPlistCSV"
+Write-Host "Users created in Azure AD, UPN and PWs exported to $UserlistJSON"
+Write-Host "Apps and Service Principals created in Azure AD, details exported to $SPlistJSON"
