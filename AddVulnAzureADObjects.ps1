@@ -122,13 +122,6 @@ foreach($GraphPermission in $DangerousGraphPermissions){
         GraphPermission = $PermissionName
     }
     $SPExport += $data
-
-    <# choose a created user at random to assign the graph permission --> this does not work?
-    $AssignUserToGraph = $UserExport | Get-Random
-    $UserObjectId = (Get-AzureADUser -SearchString "$($AssignUserToGraph.UserUPN)" | select -ExpandProperty ObjectId)
-    # Assign the permission (Not sure if this works?)
-    New-AzureAdServiceAppRoleAssignment -ObjectId $graphobjid -PrincipalId $UserObjectId -ResourceId $GraphServicePrincipal.ObjectId -Id $AppRole.Id
-    #>
 }
 # Export created Apps and SPs
 $SPExport | Export-Csv -NoTypeInformation -Path $SPlistCSV
