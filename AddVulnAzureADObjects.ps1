@@ -28,8 +28,8 @@ Catch {
 }
 # Import module Az
 Try {
-    Write-Host "Importing module Az..."
-    Import-Module Az -ErrorAction Stop
+    Write-Host "Importing modules Az.Accounts,Az.Resources,Az.Websites..."
+    Import-Module Az.Accounts,Az.Resources,Az.Websites -ErrorAction Stop
 }
 Catch {
     Write-Warning "Could not import module Az, which is required. Error message:`r`n$($error[0].Exception)`r`nTerminating script..."
