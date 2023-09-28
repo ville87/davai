@@ -12,9 +12,12 @@
 [array]$CSVHeader = @("Id","Permission")
 [array]$DangerousGraphPermissionsList = @("9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8,RoleManagement.ReadWrite.Directory","06b708a9-e830-4db3-a914-8e69da51d44f,AppRoleAssignment.ReadWrite.All")
 [array]$DangerousGraphPermissions = $DangerousGraphPermissionsList | ConvertFrom-Csv -Header $CSVHeader
+[array]$PotentialSPAbuseGraphPermissionList = @("1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9,Application.ReadWrite.All")
+[array]$PotentialSPAbuseGraphPermissions = $PotentialSPAbuseGraphPermissionList | ConvertFrom-Csv -Header $CSVHeader
 # Define dangerous Azure AD roles
 [array]$MostDangerousAzADRBACRoles = @("Global Administrator","Privileged Role Administrator","Privileged Authentication Administrator","Partner Tier2 Support")
 [array]$PotentiallyDangerousAzADRBACRoles = @("Application Administrator","Authentication Administrator","Azure AD joined device local administrator","Cloud Application Administrator","Cloud device Administrator","Exchange Administrator","Groups Administrator","Helpdesk Administrator","Hybrid Identity Administrator","Intune Administrator","Password Administrator","User Administrator","Directory Writers")
+
 Write-Host "Script started on $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')"
 
 # Import module AzureAD
@@ -78,6 +81,7 @@ foreach($userentry in $userlist){
             UserUPN = $UserUPN
             UserPW = $PWString
             UserRole = @()
+            UserMSGraphAppRole = "N/A"
         }
         $UserExport += $data
     }catch{
@@ -119,11 +123,9 @@ $GraphAppId = "00000003-0000-0000-c000-000000000000"
 # Get the Graph SP
 $GraphServicePrincipal = Get-AzureADServicePrincipal -Filter "appId eq '$GraphAppId'"
 $SPExport = @()
-# Make sure the Graph permissions are assigned
+# Make sure the dangerous Graph permissions ($DangerousGraphPermissions) are assigned
 foreach($GraphPermission in $DangerousGraphPermissions){
     $PermissionName = $GraphPermission.Permission
-    # Get the user defined graph app role
-    $AppRole = $GraphServicePrincipal.AppRoles | Where-Object {$_.Value -eq $PermissionName -and $_.AllowedMemberTypes -contains "Application"}
     # Create new AzureAD app
     $AzureADApp = New-AzureADApplication -DisplayName "TestApp_dvaad_$PermissionName"
     # Generate service principal for the app
@@ -138,6 +140,18 @@ foreach($GraphPermission in $DangerousGraphPermissions){
         AzureADPermission = "N/A"
     }
     $SPExport += $data
+}
+
+# Assign the potentially dangerous Graph permissions ($PotentialSPAbuseGraphPermissions) to users, so that there is a privesc path
+foreach($GraphPermission in $PotentialSPAbuseGraphPermissions){
+    $PermissionName = $GraphPermission.Permission
+    # Get the user defined graph app role
+    $AppRole = $GraphServicePrincipal.AppRoles | Where-Object {$_.Value -eq $PermissionName -and $_.AllowedMemberTypes -contains "Application"}
+    # Assign the graph app role to a user (which is not already assigned one of the higher Azure AD roles) 
+    $ChosenUser = $Userexport |Where-Object { $_ -notin ($Userexport |Where-Object { $_.UserRole -match "\b($($MostDangerousAzADRBACRoles -join '|'))\b"})} | Select-Object -First 1
+    $UserToAssign = Get-AzureADUser -SearchString "$($ChosenUser.UserUPN)"
+    New-AzureADUserAppRoleAssignment -ObjectId $UserToAssign.ObjectId -PrincipalId $UserToAssign.ObjectId -ResourceId $GraphServicePrincipal.ObjectId -Id $($GraphPermission.id)
+    $UserExport | Where-Object { $_.UserUPN -like $UserToAssign.UserPrincipalName } | % { $_.UserMSGraphAppRole = "$PermissionName"}
 }
 
 # Connect to the tenant using Az module
@@ -185,6 +199,7 @@ $NewAzAppSvcPrincipalId = (Get-AzWebApp -Name $NewAzAppSvc.Name).Identity.Princi
 $AzureADRoleDefs = Get-AzureADMSRoleDefinition
 $AzADPrivRoleAdminRole = $AzureADRoleDefs | Where-Object { $_.DisplayName -like "Privileged Role Administrator"}
 New-AzureADMSRoleAssignment -RoleDefinitionId $($AzADPrivRoleAdminRole.Id) -PrincipalId $NewAzAppSvcPrincipalId -DirectoryScopeId '/'
+
 # Add new user and assign with contributor rights to the new resource group
 $UserUPN = "dvaad-rgcontributor@$tenantDomain"
 $PasswordProfile = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
