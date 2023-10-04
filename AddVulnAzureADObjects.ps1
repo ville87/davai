@@ -142,7 +142,7 @@ foreach($GraphPermission in $DangerousGraphPermissions){
     $SPExport += $data
 }
 
-# Assign the potentially dangerous Graph permissions ($PotentialSPAbuseGraphPermissions) to users, so that there is a privesc path
+# Assign the potentially dangerous Graph permissions ($PotentialSPAbuseGraphPermissions) to users and service principals, so that there are privesc paths
 foreach($GraphPermission in $PotentialSPAbuseGraphPermissions){
     $PermissionName = $GraphPermission.Permission
     # Get the user defined graph app role
@@ -152,6 +152,20 @@ foreach($GraphPermission in $PotentialSPAbuseGraphPermissions){
     $UserToAssign = Get-AzureADUser -SearchString "$($ChosenUser.UserUPN)"
     New-AzureADUserAppRoleAssignment -ObjectId $UserToAssign.ObjectId -PrincipalId $UserToAssign.ObjectId -ResourceId $GraphServicePrincipal.ObjectId -Id $($GraphPermission.id)
     $UserExport | Where-Object { $_.UserUPN -like $UserToAssign.UserPrincipalName } | % { $_.UserMSGraphAppRole = "$PermissionName"}
+    # Assign the graph app role to a service principal
+    # Create new AzureAD app
+    $AzureADApp = New-AzureADApplication -DisplayName "TestApp_dvaad_$PermissionName"
+    # Generate service principal for the app
+    $AzureADAppSP = New-AzureADServicePrincipal -AppId $AzureADApp.AppId
+    # Get the Graph Permission (app role) and assign it to the new SP
+    New-AzureAdServiceAppRoleAssignment -ObjectId $AzureADAppSP.ObjectId -PrincipalId $AzureADAppSP.ObjectId -ResourceId $GraphServicePrincipal.ObjectId -Id $AppRole.Id
+    $data = [PSCustomObject]@{
+        AppName = $($AzureADApp.DisplayName)
+        SvcPrincipalId = $($AzureADAppSP.ObjectId)
+        GraphPermission = $PermissionName
+        AzureADPermission = "N/A"
+    }
+    $SPExport += $data
 }
 
 # Connect to the tenant using Az module

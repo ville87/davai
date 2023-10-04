@@ -27,9 +27,9 @@ In addition, it registers Azure AD apps and service principals, which it assigns
     - `Password Administrator`
     - `User Administrator`
     - `Directory Writers`
-- Assigns a user with the MS Graph App role `Application.ReadWrite.All` which would allow for privilege escalation if an app has high privileges
-- Creates two new AzureAD apps (TestApp_dvaad_$PermissionName) and assigns the Graph API roles `RoleManagement.ReadWrite.Directory`,`AppRoleAssignment.ReadWrite.All`
+- Assigns a user and a service principal with the MS Graph API app role `Application.ReadWrite.All` which would allow for privilege escalation via highly privileged applications
 - Creates a new resource group (RG_dvaad_xxxxxxxx)
-- Creates a new Azure Web App Service (dvaad-AppSvc-xxxxxxxx) in this RG and assigns it with a managed identity. This managed identity is assigned with the Azure AD role 
-    `Privileged Role Administrator`
+- Creates new AzureAD apps (TestApp_dvaad_$PermissionName) and assigns the Graph API roles `RoleManagement.ReadWrite.Directory`,`AppRoleAssignment.ReadWrite.All`
+- Creates a new Azure Web App Service (dvaad-AppSvc-xxxxxxxx) in the created RG and assigns it with a managed identity. This managed identity is assigned with the Azure AD role 
+    - `Privileged Role Administrator`
 - Creates a new user (dvaad-rgcontributor@$tenantDomain) and assigns it with the `Contributor` RBAC role on the new resource group
